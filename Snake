@@ -1,0 +1,69 @@
+#include "raylib.h"
+//------------------------------------------------------------------------------------
+// Programa principal
+//------------------------------------------------------------------------------------
+int main(void)
+{
+    // Inicialización
+    const int screenWidth = 800;
+    const int screenHeight = 450;
+    InitWindow(screenWidth, screenHeight, "Snake - RS");
+
+    // Manzana
+
+
+    // Jugador
+    const int paddleWidth = 20;
+    const int paddleHeight = 100;
+    Snake player2 = ;
+    const float paddleSpeed = 6.0f;
+
+    // Plataforma
+    const int midLineWidth = 4;
+    const int midHoleHeight = 80;
+    Rectangle midLineTop = { screenWidth/2 - midLineWidth/2, 0, midLineWidth, screenHeight/2 - midHoleHeight/2 };
+    Rectangle midLineBottom = { screenWidth/2 - midLineWidth/2, screenHeight/2 + midHoleHeight/2, midLineWidth, screenHeight/2 - midHoleHeight/2 };
+
+    SetTargetFPS(60);
+    while (!WindowShouldClose())
+    {
+        // Movimiento jugador
+        if (IsKeyDown(KEY_W)) player.y -= paddleSpeed;
+        if (IsKeyDown(KEY_S)) player.y += paddleSpeed;
+        if (IsKeyDown(KEY_D)) Player.y 
+
+        // Limitar movimiento dentro de la pantalla
+        if (player1.y < 0) player1.y = 0;
+        if (player1.y + player1.height > screenHeight) player1.y = screenHeight - player1.height;
+        if (player2.y < 0) player2.y = 0;
+        if (player2.y + player2.height > screenHeight) player2.y = screenHeight - player2.height;
+
+        // --- Dibujo ---
+        BeginDrawing();
+            ClearBackground(BLACK);
+
+            // Líneas de límites
+            DrawLine(0, 0, screenWidth, 0, GRAY);
+            DrawLine(0, screenHeight - 1, screenWidth, screenHeight - 1, GRAY);
+
+            // Línea central
+            DrawRectangleRec(midLineTop, GRAY);
+            DrawRectangleRec(midLineBottom, GRAY);
+
+            // Jugador Serpiente
+            DrawRectangleRec(player1, RAYWHITE);
+            DrawRectangleRec(player2, RAYWHITE);
+
+            // Manzana
+            DrawCircleV(ballPosition, (float)ballRadius, MAROON);
+
+            // Textos de ayuda
+            DrawText("Jugador 1: W/S/D/A", 20, 20, 20, MAGENTA);
+
+            DrawFPS(10, screenHeight - 30);
+        EndDrawing();
+    }
+    //------------------------------------------------------------------------------------
+    CloseWindow();
+    return 0;
+}
