@@ -69,7 +69,7 @@ bool IsOnPlatform(Cell c) {
 }
 
 void InitGame(void) {
-    gameOver = false;
+    //gameOver = false;
     gameWin = false;
     applesEaten = 0;
     apple1Alive = apple2Alive = true;
@@ -145,13 +145,13 @@ void MoveSnake(void) {
     // else if (snakeDir == DIR_DOWN) newHead.y++;
 
     if (!insideGrid(newHead.x, newHead.y)) {
-        gameOver = true;
+        //gameOver = true;
         return;
     }
 
     for (int i = 0; i < snakeLen; i++) {
         if (equalCell(snake[i], newHead)) {
-            gameOver = true;
+            //gameOver = true;
             return;
         }
     }
@@ -254,9 +254,9 @@ int main(void) {
         DrawText("Flechas: mover. R: reiniciar.", 10, 10, 14, BLACK);
         DrawText(TextFormat("Manzanas comidas: %i / 2", applesEaten), 10, 30, 14, BLACK);
 
-        if (gameOver)
-            DrawText("TE CAISTE! Presiona R para reiniciar.", 120, SCREEN_H/2 - 20, 20, RED);
-        else if (gameWin)
+        //if (gameOver)
+            //DrawText("TE CAISTE! Presiona R para reiniciar.", 120, SCREEN_H/2 - 20, 20, RED);
+        if (gameWin)
             DrawText("GANASTE! Entraste al portal verde. Presiona R para jugar otra vez.", 60, SCREEN_H/2 - 20, 20, GREEN);
         else if (!portalActive)
             DrawText("Come 2 manzanas para abrir el portal verde.", 10, 50, 14, DARKGRAY);
