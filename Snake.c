@@ -13,7 +13,7 @@
 typedef enum { DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT } Direction;
 
 typedef struct {
-    int x, y; 
+    int x, y;
 } Cell;
 
 static bool platformGrid[COLS][ROWS];
@@ -21,7 +21,7 @@ static Cell snake[MAX_SNAKE];
 static int snakeLen;
 static Direction snakeDir;
 static float moveTimer = 0.0f;
-static float moveDelay = 0.12f; 
+static float moveDelay = 0.12f;
 static bool gameOver = false;
 static bool gameWin = false;
 
@@ -32,7 +32,7 @@ static bool apple1Alive = true, apple2Alive = true;
 static Cell portal;
 static bool portalActive = false;
 
-//físicas
+// físicas
 static float gravity = 0.25f;
 static float velocityY = 0.0f;
 static bool grounded = false;
@@ -42,14 +42,14 @@ static bool insideGrid(int x, int y) { return x >= 0 && x < COLS && y >= 0 && y 
 
 void GeneratePlatforms(void) {
     for (int i = 0; i < COLS; i++){
-        for (int j = 0; j < ROWS; j++){ 
+        for (int j = 0; j < ROWS; j++){
             platformGrid[i][j] = false;
         }
     }
 
+    // suelo
     for (int i = 0; i < COLS; i++) {
         platformGrid[i][ROWS - 1] = true;
-        platformGrid[i][ROWS - 2] = true; 
     }
 
     int baseRow = ROWS - 6;
@@ -59,11 +59,12 @@ void GeneratePlatforms(void) {
     for (int i = 12; i < 20; i++) platformGrid[i][baseRow + 2] = true;
 
     platformGrid[22][ROWS - 4] = true;
-    platformGrid[23][ROWS - 4] = true; 
+    platformGrid[23][ROWS - 4] = true;
 }
 
+// si toca el suelo, está sobre algo
 bool IsOnPlatform(Cell c) {
-    if (!insideGrid(c.x, c.y + 1)) return false;
+    if (!insideGrid(c.x, c.y + 1)) return true; 
     return platformGrid[c.x][c.y + 1];
 }
 
@@ -81,25 +82,23 @@ void InitGame(void) {
     velocityY = 0.0f;
     grounded = false;
 
-    // empieza en el aire, para que caiga
-    int startX = 2;
-    int startY = 5; 
+    int startX = 7;
+    int startY = 5;
 
     for (int i = 0; i < snakeLen; i++) {
         snake[i].x = startX - i;
-        snake[i].y = startY; 
+        snake[i].y = startY;
     }
 
-    // posición manzanas
-    apple1 = (Cell){8, ROWS - 7};   // fácil
-    apple2 = (Cell){32, ROWS - 9};  // difícil
+    apple1 = (Cell){8, ROWS - 7};
+    apple2 = (Cell){32, ROWS - 9};
 
-    // portal al final
-    for (int y = 0; y < ROWS; y++) {
-        for (int x = COLS - 1; x >= 0; x--) {
-            if (platformGrid[x][y]) {
+    // Buscar un bloque sólido del suelo para el portal
+    for (int y = ROWS - 2; y >= 0; y--) {
+        for (int x = COLS - 2; x >= 0; x--) {
+            if (platformGrid[x][y] && !platformGrid[x][y - 1]) {
                 portal.x = x;
-                portal.y = y;
+                portal.y = y - 1;
                 goto foundPortal;
             }
         }
@@ -109,10 +108,13 @@ foundPortal:;
 }
 
 void ApplyPhysics(void) {
-    if (!grounded) {
+    Cell head = snake[0];
+    if (!IsOnPlatform(head)) {
+        grounded = false;
         velocityY += gravity;
-        int moveY = (int)velocityY;
-        for (int i = 0; i < moveY; i++) {
+        int fall = (int)velocityY;
+
+        for (int i = 0; i < fall; i++) {
             Cell nextPos = snake[0];
             nextPos.y++;
             if (nextPos.y >= ROWS - 1 || IsOnPlatform(nextPos)) {
@@ -123,46 +125,52 @@ void ApplyPhysics(void) {
                 for (int s = 0; s < snakeLen; s++) snake[s].y++;
             }
         }
+    } else {
+        grounded = true;
+        velocityY = 0.0f;
     }
 }
 
 void MoveSnake(void) {
     ApplyPhysics();
 
+    // no moverse en el aire
+    if (!grounded) return; 
+
     Cell head = snake[0];
     Cell newHead = head;
-    if (snakeDir == DIR_RIGHT) newHead.x++;
-    else if (snakeDir == DIR_LEFT) newHead.x--;
-    else if (snakeDir == DIR_UP) newHead.y--;
-    else if (snakeDir == DIR_DOWN) newHead.y++;
+    // if (snakeDir == DIR_RIGHT) newHead.x++;
+    // else if (snakeDir == DIR_LEFT) newHead.x--;
+    // else if (snakeDir == DIR_UP) newHead.y--;
+    // else if (snakeDir == DIR_DOWN) newHead.y++;
 
     if (!insideGrid(newHead.x, newHead.y)) {
         gameOver = true;
         return;
     }
 
+    for (int i = 0; i < snakeLen; i++) {
+        if (equalCell(snake[i], newHead)) {
+            gameOver = true;
+            return;
+        }
+    }
+
     for (int i = snakeLen - 1; i > 0; i--) snake[i] = snake[i - 1];
     snake[0] = newHead;
 
-    if (!IsOnPlatform(newHead) && !grounded) {
-        gameOver = true;
-        return;
-    }
+    if (!IsOnPlatform(newHead) && newHead.y < ROWS - 1) grounded = false;
 
+    // comer manzanas
     if (apple1Alive && equalCell(newHead, apple1)) {
         apple1Alive = false;
         applesEaten++;
-        if (snakeLen < MAX_SNAKE) {
-            snake[snakeLen] = snake[snakeLen - 1];
-            snakeLen++;
-        }
-    } else if (apple2Alive && equalCell(newHead, apple2)) {
+        if (snakeLen < MAX_SNAKE) snake[snakeLen++] = snake[snakeLen - 1];
+    }
+    if (apple2Alive && equalCell(newHead, apple2)) {
         apple2Alive = false;
         applesEaten++;
-        if (snakeLen < MAX_SNAKE) {
-            snake[snakeLen] = snake[snakeLen - 1];
-            snakeLen++;
-        }
+        if (snakeLen < MAX_SNAKE) snake[snakeLen++] = snake[snakeLen - 1];
     }
 
     if (applesEaten >= 2) portalActive = true;
@@ -176,7 +184,6 @@ int main(void) {
     InitWindow(SCREEN_W, SCREEN_H, "SnakePajaro");
     SetTargetFPS(60);
     srand(time(NULL));
-
     InitGame();
 
     while (!WindowShouldClose()) {
@@ -187,9 +194,7 @@ int main(void) {
             if (IsKeyPressed(KEY_DOWN) && snakeDir != DIR_UP) snakeDir = DIR_DOWN;
         }
 
-        if (IsKeyPressed(KEY_R)) {
-            InitGame();
-        }
+        if (IsKeyPressed(KEY_R)) InitGame();
 
         if (!gameOver && !gameWin) {
             moveTimer += GetFrameTime();
@@ -200,7 +205,7 @@ int main(void) {
         }
 
         BeginDrawing();
-        ClearBackground((Color){135, 206, 235, 255}); 
+        ClearBackground((Color){135, 206, 235, 255});
 
         DrawCircle(120, 80, 26, WHITE);
         DrawCircle(150, 80, 34, WHITE);
@@ -218,7 +223,6 @@ int main(void) {
                     int py = y * CELL;
                     DrawRectangle(px, py + CELL/2, CELL, CELL/2, (Color){139,69,19,255});
                     DrawRectangle(px, py, CELL, CELL/2, (Color){34,139,34,255});
-                    DrawRectangleLines(px, py, CELL, CELL/2, (Color){0,100,0,255});
                 }
             }
         }
@@ -232,34 +236,32 @@ int main(void) {
             DrawRectangle(apple2.x * CELL + CELL/2 - 1, apple2.y * CELL + 2, 2, 6, DARKGREEN);
         }
 
-        if (portalActive) {
+        if (portalActive)
             DrawRectangle(portal.x * CELL + 2, portal.y * CELL + 2, CELL - 4, CELL - 4, GREEN);
-            DrawRectangle(portal.x * CELL + CELL/4, portal.y * CELL + CELL/4, CELL/2, CELL/2, (Color){0,200,0,255});
-        } else {
+        else
             DrawRectangleLines(portal.x * CELL + 2, portal.y * CELL + 2, CELL - 4, CELL - 4, (Color){0,128,0,60});
-        }
 
         for (int i = 0; i < snakeLen; i++) {
             int px = snake[i].x * CELL;
             int py = snake[i].y * CELL;
-            if (i == 0) DrawRectangle(px + 1, py + 1, CELL - 2, CELL - 2, (Color){30,144,255,255}); 
-            else DrawRectangle(px + 1, py + 1, CELL - 2, CELL - 2, (Color){0,0,205,255}); 
+            if (i == 0)
+                DrawRectangle(px + 1, py + 1, CELL - 2, CELL - 2, (Color){30,144,255,255});
+            else
+                DrawRectangle(px + 1, py + 1, CELL - 2, CELL - 2, (Color){0,0,205,255});
             DrawRectangleLines(px + 1, py + 1, CELL - 2, CELL - 2, BLACK);
         }
 
         DrawText("Flechas: mover. R: reiniciar.", 10, 10, 14, BLACK);
         DrawText(TextFormat("Manzanas comidas: %i / 2", applesEaten), 10, 30, 14, BLACK);
 
-        if (gameOver) {
+        if (gameOver)
             DrawText("TE CAISTE! Presiona R para reiniciar.", 120, SCREEN_H/2 - 20, 20, RED);
-        } else if (gameWin) {
+        else if (gameWin)
             DrawText("GANASTE! Entraste al portal verde. Presiona R para jugar otra vez.", 60, SCREEN_H/2 - 20, 20, GREEN);
-        } else {
-            if (!portalActive) {
-                DrawText("Come 2 manzanas para abrir el portal verde.", 10, 50, 14, DARKGRAY);
-            } else {
-                DrawText("Portal activo! Entra al portal verde para ganar.", 10, 50, 14, DARKGREEN); }
-        }
+        else if (!portalActive)
+            DrawText("Come 2 manzanas para abrir el portal verde.", 10, 50, 14, DARKGRAY);
+        else
+            DrawText("Portal activo! Entra al portal verde para ganar.", 10, 50, 14, DARKGREEN);
 
         EndDrawing();
     }
