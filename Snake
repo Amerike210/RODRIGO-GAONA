@@ -1,69 +1,148 @@
 #include "raylib.h"
-//------------------------------------------------------------------------------------
-// Programa principal
-//------------------------------------------------------------------------------------
-int main(void)
-{
-    // Inicialización
-    const int screenWidth = 800;
-    const int screenHeight = 450;
-    InitWindow(screenWidth, screenHeight, "Snake - RS");
+#include <stdlib.h>
+#include <time.h>
+#include <stdbool.h>
 
-    // Manzana
+#define SCREEN_W 800
+#define SCREEN_H 600
 
+#define CELL 20
 
-    // Jugador
-    const int paddleWidth = 20;
-    const int paddleHeight = 100;
-    Snake player2 = ;
-    const float paddleSpeed = 6.0f;
+#define COLS (SCREEN_W / CELL)
+#define ROWS (SCREEN_H / CELL)
 
-    // Plataforma
-    const int midLineWidth = 4;
-    const int midHoleHeight = 80;
-    Rectangle midLineTop = { screenWidth/2 - midLineWidth/2, 0, midLineWidth, screenHeight/2 - midHoleHeight/2 };
-    Rectangle midLineBottom = { screenWidth/2 - midLineWidth/2, screenHeight/2 + midHoleHeight/2, midLineWidth, screenHeight/2 - midHoleHeight/2 };
+typedef enum { DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT } Direction;
 
-    SetTargetFPS(60);
-    while (!WindowShouldClose())
-    {
-        // Movimiento jugador
-        if (IsKeyDown(KEY_W)) player.y -= paddleSpeed;
-        if (IsKeyDown(KEY_S)) player.y += paddleSpeed;
-        if (IsKeyDown(KEY_D)) Player.y 
+typedef struct {
+    int x, y; 
+} Cell;
 
-        // Limitar movimiento dentro de la pantalla
-        if (player1.y < 0) player1.y = 0;
-        if (player1.y + player1.height > screenHeight) player1.y = screenHeight - player1.height;
-        if (player2.y < 0) player2.y = 0;
-        if (player2.y + player2.height > screenHeight) player2.y = screenHeight - player2.height;
+static bool platformGrid[COLS][ROWS];
+static Cell snake[MAX_SNAKE];
+static int snakeLen;
+static Direction snakeDir;
+static float moveTimer = 0.0f;
+static float moveDelay = 0.12f; 
+static bool gameOver = false;
+static bool gameWin = false;
 
-        // --- Dibujo ---
-        BeginDrawing();
-            ClearBackground(BLACK);
+static Cell apple1, apple2;
+static int applesEaten = 0;
+static bool apple1Alive = true, apple2Alive = true;
 
-            // Líneas de límites
-            DrawLine(0, 0, screenWidth, 0, GRAY);
-            DrawLine(0, screenHeight - 1, screenWidth, screenHeight - 1, GRAY);
+static Cell portal;
+static bool portalActive = false;
 
-            // Línea central
-            DrawRectangleRec(midLineTop, GRAY);
-            DrawRectangleRec(midLineBottom, GRAY);
+static bool equalCell(Cell a, Cell b) { return a.x == b.x && a.y == b.y; }
+static bool insideGrid(int x, int y) { return x >= 0 && x < COLS && y >= 0 && y < ROWS; }
 
-            // Jugador Serpiente
-            DrawRectangleRec(player1, RAYWHITE);
-            DrawRectangleRec(player2, RAYWHITE);
+void GeneratePlatforms(void) {
+    // Clear
+    for (int i = 0; i < COLS; i++)
+        for (int j = 0; j < ROWS; j++)
+            platformGrid[i][j] = false;
 
-            // Manzana
-            DrawCircleV(ballPosition, (float)ballRadius, MAROON);
-
-            // Textos de ayuda
-            DrawText("Jugador 1: W/S/D/A", 20, 20, 20, MAGENTA);
-
-            DrawFPS(10, screenHeight - 30);
-        EndDrawing();
+    for (int i = 0; i < COLS; i++) {
+        platformGrid[i][ROWS - 1] = true;
+        platformGrid[i][ROWS - 2] = true; 
     }
-    //------------------------------------------------------------------------------------
+
+    int baseRow = ROWS - 6;
+    for (int i = 5; i < 12; i++) platformGrid[i][baseRow] = true;
+    for (int i = 18; i < 25; i++) platformGrid[i][baseRow - 2] = true;
+    for (int i = 30; i < 36; i++) platformGrid[i][baseRow - 1] = true;
+    for (int i = 12; i < 20; i++) platformGrid[i][baseRow + 2] = true;
+
+    platformGrid[22][ROWS - 4] = true;
+    platformGrid[23][ROWS - 4] = true;
+}
+
+bool IsOnPlatform(Cell c) {
+    if (!insideGrid(c.x, c.y)) return false;
+    return platformGrid[c.x][c.y];
+}
+
+Cell PlaceApple(void) {
+    Cell c;
+    int attempts = 0;
+    do {
+        c.x = GetRandomValue(0, COLS - 1);
+        c.y = GetRandomValue(0, ROWS - 1);
+        attempts++;
+        if (attempts > 10000) break;
+    } while (!IsOnPlatform(c) || (equalCell(c, snake[0]))); 
+    return c;
+}
+
+void InitGame(void) {
+    gameOver = false;
+    gameWin = false;
+    applesEaten = 0;
+    apple1Alive = apple2Alive = true;
+    portalActive = false;
+
+    GeneratePlatforms();
+
+    snakeLen = 3;
+    snakeDir = DIR_RIGHT;
+
+    int startX = 2;
+    int startY = ROWS - 3; 
+    while (startY > 0 && !platformGrid[startX][startY]) startY--;
+    for (int i = 0; i < snakeLen; i++) {
+        snake[i].x = startX - i;
+        snake[i].y = startY;
+    }
+
+    apple1 = PlaceApple();
+    apple2 = PlaceApple();
+    while (equalCell(apple2, apple1)) apple2 = PlaceApple();
+
+    for (int y = 0; y < ROWS; y++) {
+        for (int x = COLS - 1; x >= 0; x--) {
+            if (platformGrid[x][y]) {
+                portal.x = x;
+                portal.y = y;
+                goto foundPortal;
+            }
+        }
+    }
+foundPortal:;
+    moveTimer = 0.0f;
+}
+
+void MoveSnake(void) {
+    Cell head = snake[0];
+    Cell newHead = head;
+    if (snakeDir == DIR_RIGHT) newHead.x++;
+    else if (snakeDir == DIR_LEFT) newHead.x--;
+    else if (snakeDir == DIR_UP) newHead.y--;
+    else if (snakeDir == DIR_DOWN) newHead.y++;
+
+    if (!insideGrid(newHead.x, newHead.y)) {
+        gameOver = true;
+        return;
+    }
+
+    for (int i = snakeLen - 1; i > 0; i--) snake[i] = snake[i - 1];
+    snake[0] = newHead;
+
+    if (!IsOnPlatform(newHead)) {
+        gameOver = true;
+        return;
+    }
+
+    if (apple1Alive && equalCell(newHead, apple1)) {
+        apple1Alive = false;
+        applesEaten++;
+
+        if (snakeLen < MAX_SNAKE) {
+            snake[snakeLen] = snake[snakeLen - 1];
+            snakeLen++;
+        }
+    } else if (apple2Alive && equalCell(newHead, apple2)) {
+        apple2Alive = false;
+
     CloseWindow();
     return 0;
 }
