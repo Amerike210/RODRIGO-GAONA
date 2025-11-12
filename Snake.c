@@ -139,10 +139,10 @@ void MoveSnake(void) {
 
     Cell head = snake[0];
     Cell newHead = head;
-    // if (snakeDir == DIR_RIGHT) newHead.x++;
-    // else if (snakeDir == DIR_LEFT) newHead.x--;
-    // else if (snakeDir == DIR_UP) newHead.y--;
-    // else if (snakeDir == DIR_DOWN) newHead.y++;
+    if (snakeDir == DIR_RIGHT) newHead.x++;
+    else if (snakeDir == DIR_LEFT) newHead.x--;
+    else if (snakeDir == DIR_UP) newHead.y--;
+    else if (snakeDir == DIR_DOWN) newHead.y++;
 
     if (!insideGrid(newHead.x, newHead.y)) {
         //gameOver = true;
@@ -188,7 +188,7 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         if (!gameOver && !gameWin) {
-            if (IsKeyPressed(KEY_RIGHT) && snakeDir != DIR_LEFT) snakeDir = DIR_RIGHT;
+            if (IsKeyPressed(KEY_A) && snakeDir != DIR_LEFT) snakeDir = DIR_RIGHT;
             if (IsKeyPressed(KEY_LEFT) && snakeDir != DIR_RIGHT) snakeDir = DIR_LEFT;
             if (IsKeyPressed(KEY_UP) && snakeDir != DIR_DOWN) snakeDir = DIR_UP;
             if (IsKeyPressed(KEY_DOWN) && snakeDir != DIR_UP) snakeDir = DIR_DOWN;
